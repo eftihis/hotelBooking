@@ -9,6 +9,7 @@ import {
     setupFormValidation,
     saveListingSettings 
 } from './settings/listingSettings';
+import { initializeCalendar } from './calendar/calendarInit';
 
 async function init() {
     // Test auth
@@ -52,5 +53,35 @@ async function init() {
     console.log('Nights between dates:', calculateNights(today, tomorrow));
     console.log('Formatted price:', formatPrice(99.99));
 }
+
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('Admin page initialized');
+    
+    const listingId = getListingIdFromUrl();
+    console.log('Listing ID:', listingId);
+
+    if (!listingId) {
+        console.error('No listing ID found');
+        return;
+    }
+
+    try {
+        // Initialize calendar
+        const calendar = await initializeCalendar(listingId);
+        console.log('Calendar initialized:', !!calendar);
+
+        // Initialize other components
+        const { taxes, appliedTaxes } = await initializeTaxes(listingId);
+        console.log('Available taxes:', taxes);
+        console.log('Applied taxes:', appliedTaxes);
+
+        // Initialize listing settings
+        const settings = await fetchListingSettings(listingId);
+        console.log('Listing settings:', settings);
+
+    } catch (error) {
+        console.error('Error initializing admin page:', error);
+    }
+});
 
 init();
