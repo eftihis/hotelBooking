@@ -165,38 +165,35 @@ function processBookingsForDisabledDates(bookings, gapDays) {
     return disabledDateRanges;
 }
 
-function initializeFlatpickr(config) {
-    const defaultConfig = {
+function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, bookings, disabledDateRanges }) {
+    // Create flatpickr with initial config
+    const adminPicker = flatpickr("[data-element='admin-date-picker']", {
         mode: "multiple",
         inline: true,
         altInput: false,
         altFormat: "F j, Y",
         dateFormat: "Y-m-d",
+        minDate: new Date().setFullYear(new Date().getFullYear() - 1),
+        maxDate: new Date().setFullYear(new Date().getFullYear() + 1),
+        baseRate: baseRate || null,
+        openPeriods: openPeriods || [],
+        rates: rates || [],
         showMonths: 1,
-        clickOpens: true,
-        allowInput: false,
-        static: true,
-        disable: [], 
-        
-        onChange: function(selectedDates, dateStr, instance) {
-            // Find the next available day after the last selected date
-            const lastSelected = selectedDates[selectedDates.length - 1];
-            const nextDay = instance.days.querySelector(`[aria-label="${instance.formatDate(lastSelected, 'F j, Y')}"]`);
-            
-            if (nextDay) {
-                nextDay.focus();
-            }
-        },
+        bookings: bookings || [],
+        disable: disabledDateRanges,
         
         onDayCreate: function(dObj, dStr, fp, dayElem) {
             const currentDate = dayElem.dateObj;
             
+            // Add past-date class for dates before today
             if (currentDate < new Date().setHours(0,0,0,0)) {
                 dayElem.classList.add('flatpickr-disabled');
             }
             
-            const formattedCurrentDate = formatDate(currentDate);
+            // Format current date for comparison
+            const formattedCurrentDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
             
+            // Wrap the date number in a span
             const dateContent = dayElem.innerHTML;
             dayElem.innerHTML = `<span class="day-number">${dateContent}</span>`;
             
@@ -205,11 +202,13 @@ function initializeFlatpickr(config) {
                 formattedCurrentDate <= period.end_date
             );
             
+            // Check for specific rate
             const specificRate = fp.config.rates.find(rate => 
                 formattedCurrentDate >= rate.start_date && 
                 formattedCurrentDate <= rate.end_date
             );
             
+            // Create rate element
             const rateElement = document.createElement('span');
             rateElement.className = 'day-rate';
             
@@ -251,6 +250,42 @@ function initializeFlatpickr(config) {
                     bookingStrip.classList.add('booking-end');
                 }
 
+                // Add click handler to show booking details
+                bookingStrip.addEventListener('click', async function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    
+                    const modal = document.querySelector('[data-element="booking-modal"]');
+                    if (!modal) return;
+
+                    // Populate modal elements
+                    const modalElements = {
+                        'guest-name': booking.guests?.name || 'N/A',
+                        'listing-name': booking.listings?.name || 'N/A',
+                        'check-in': booking.check_in,
+                        'check-out': booking.check_out,
+                        'total-nights': `${booking.total_nights || 0} nights`,
+                        'total-price': `€${formatPrice(booking.final_total || 0)}`,
+                        'confirmation-code': booking.id || 'N/A',
+                        'nightly-rate': `€${formatPrice(booking.nightly_rate || 0)}`,
+                        'cleaning-fee': `€${formatPrice(booking.cleaning_fee || 0)}`,
+                        'discount-amount': `€${formatPrice(booking.discount_total || 0)}`,
+                        'nightstay-tax-amount': `€${formatPrice(booking.nightstay_tax_total || 0)}`,
+                        'total-guests': booking.number_of_guests || 'N/A',
+                        'booking-status': booking.status || 'N/A',
+                        'payment-status': booking.payment_status || 'N/A'
+                    };
+
+                    Object.entries(modalElements).forEach(([element, value]) => {
+                        const el = document.querySelector(`[data-element="booking-${element}"]`);
+                        if (el) el.textContent = value;
+                    });
+
+                    // Show the modal
+                    modal.style.display = 'block';
+                    modal.classList.add('is-visible');
+                }, true);
+
                 dayElem.appendChild(bookingStrip);
                 dayElem.classList.add('has-booking');
             }
@@ -261,19 +296,36 @@ function initializeFlatpickr(config) {
             let startDate = null;
             let isMouseDown = false;
             let isDragging = false;
+            
+            // Helper function to format dates for logging
+            function formatDatesForLog(dates) {
+                return dates.map(date => date.toLocaleDateString()).join(', ');
+            }
+            
+            // Helper function to log selection changes
+            function logSelectionChange(action, dates) {
+                console.log(`%c${action}: ${dates.length} dates selected`, 'color: #4CAF50; font-weight: bold');
+                console.log('Selected dates:', formatDatesForLog(dates));
+            }
+
+            // Move detectDrag to outer scope
             let detectDrag = null;
             
+            // Add mousedown event to calendar container
             instance.calendarContainer.addEventListener('mousedown', function(e) {
                 const dayElement = e.target.closest('.flatpickr-day');
                 if (!dayElement || dayElement.classList.contains('flatpickr-disabled')) return;
                 
+                console.log('Mouse down detected');
                 isMouseDown = true;
                 startDate = new Date(dayElement.dateObj);
                 const currentMonth = instance.currentMonth;
                 
+                // Store initial click position to detect drag
                 const initialX = e.clientX;
                 const initialY = e.clientY;
                 
+                // Define detectDrag function and store reference
                 detectDrag = function(moveEvent) {
                     if (!isMouseDown) return;
                     
@@ -283,33 +335,40 @@ function initializeFlatpickr(config) {
                     if (deltaX > 5 || deltaY > 5) {
                         isDragging = true;
                         isSelecting = true;
+                        console.log('Drag detected');
                         document.removeEventListener('mousemove', detectDrag);
                     }
                 };
                 
                 document.addEventListener('mousemove', detectDrag);
                 
+                // If not dragging yet, handle as a click
                 if (!isDragging) {
                     const existingDates = [...instance.selectedDates];
                     const clickedDate = new Date(dayElement.dateObj);
                     
+                    // Check if the clicked date is already selected
                     const dateExists = existingDates.some(date => 
                         date.toDateString() === clickedDate.toDateString()
                     );
                     
                     if (dateExists) {
+                        // If date exists, remove it
                         const newDates = existingDates.filter(date => 
                             date.toDateString() !== clickedDate.toDateString()
                         );
                         instance.setDate(newDates);
                     } else {
+                        // If date doesn't exist, add it to existing selection
                         instance.setDate([...existingDates, clickedDate]);
                     }
                 }
                 
+                // Restore the month view
                 instance.changeMonth(currentMonth, false);
             });
-
+            
+            // Add mousemove event to calendar container
             instance.calendarContainer.addEventListener('mousemove', function(e) {
                 if (!isMouseDown || !isDragging) return;
                 
@@ -320,7 +379,9 @@ function initializeFlatpickr(config) {
                 const currentMonth = instance.currentMonth;
                 
                 if (isDragging) {
+                    // During drag, merge with existing selection
                     const existingDates = instance.selectedDates.filter(date => {
+                        // Keep dates that aren't in the current drag range
                         return date < Math.min(startDate, currentDate) || 
                                date > Math.max(startDate, currentDate);
                     });
@@ -328,16 +389,22 @@ function initializeFlatpickr(config) {
                     const dragDates = getDatesInRange(startDate, currentDate);
                     instance.setDate([...existingDates, ...dragDates]);
                     
+                    // Restore the month view
                     instance.changeMonth(currentMonth, false);
                 }
             });
-
-            const handleGlobalMouseUp = function() {
+            
+            const handleGlobalMouseUp = function(e) {
                 if (isMouseDown) {
+                    console.log('Selection ended');
+                    if (instance.selectedDates.length > 0) {
+                        logSelectionChange('Final selection', instance.selectedDates);
+                    }
                     isMouseDown = false;
                     isSelecting = false;
                     isDragging = false;
                     startDate = null;
+                    // Now detectDrag will be defined when we try to remove it
                     if (detectDrag) {
                         document.removeEventListener('mousemove', detectDrag);
                         detectDrag = null;
@@ -345,10 +412,14 @@ function initializeFlatpickr(config) {
                 }
             };
 
+            // Add mouseup handler to document
             document.addEventListener('mouseup', handleGlobalMouseUp);
             
+            // Add mouseleave handler to calendar container
             instance.calendarContainer.addEventListener('mouseleave', function() {
+                console.log('Mouse left calendar area');
                 if (isMouseDown) {
+                    console.log('Resetting selection state on mouseleave');
                     isMouseDown = false;
                     isSelecting = false;
                     isDragging = false;
@@ -356,14 +427,17 @@ function initializeFlatpickr(config) {
                 }
             });
             
+            // Helper function to get all dates between two dates
             function getDatesInRange(start, end) {
                 const dates = [];
                 const startTime = new Date(start);
                 const endTime = new Date(end);
                 
+                // Ensure start is before end
                 const actualStart = startTime < endTime ? startTime : endTime;
                 const actualEnd = startTime < endTime ? endTime : startTime;
                 
+                // Create date range
                 let currentDate = new Date(actualStart);
                 while (currentDate <= actualEnd) {
                     dates.push(new Date(currentDate));
@@ -373,13 +447,14 @@ function initializeFlatpickr(config) {
                 return dates;
             }
             
+            // Clean up function
             instance._cleanup = function() {
                 document.removeEventListener('mouseup', handleGlobalMouseUp);
             };
         }
-    };
+    });
 
-    return flatpickr("[data-element='admin-date-picker']", { ...defaultConfig, ...config });
+    return adminPicker;
 }
 
 // Event Handlers
@@ -881,6 +956,15 @@ function setupEventHandlers(adminPicker, listingId) {
     // ESC key handler
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
+            // Close modal if it's open
+            const modal = document.querySelector('[data-element="booking-modal"]');
+            if (modal && modal.classList.contains('is-visible')) {
+                modal.style.display = 'none';
+                modal.classList.remove('is-visible');
+                return;
+            }
+
+            // Clear calendar selection if any dates are selected
             if (adminPicker.selectedDates.length > 0) {
                 const currentMonth = adminPicker.currentMonth;
                 adminPicker.clear();
@@ -892,6 +976,30 @@ function setupEventHandlers(adminPicker, listingId) {
             }
         }
     });
+
+    // Add close button handler for the modal
+    const closeModalButton = document.querySelector('[data-element="close-modal"]');
+    if (closeModalButton) {
+        closeModalButton.addEventListener('click', function() {
+            const modal = document.querySelector('[data-element="booking-modal"]');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.remove('is-visible');
+            }
+        });
+    }
+
+    // Add click outside modal handler
+    const modal = document.querySelector('[data-element="booking-modal"]');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            // Close if clicking outside the modal content
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                modal.classList.remove('is-visible');
+            }
+        });
+    }
 }
 
 function setupBookingModal(listingId) {
