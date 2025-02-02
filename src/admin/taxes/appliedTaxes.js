@@ -3,6 +3,7 @@ import { setupTaxForm } from './taxForm';
 
 export async function initializeTaxes(listingId) {
     console.log('Initializing taxes...');
+    
     // Fetch predefined taxes for the select dropdown
     const { data: taxes, error } = await supabase
         .from('taxes')
@@ -12,9 +13,6 @@ export async function initializeTaxes(listingId) {
         console.error('Error fetching taxes:', error);
         return { taxes: [], appliedTaxes: [] };
     }
-
-    // Setup the add tax form
-    setupTaxForm(taxes, listingId);
 
     // Fetch and display existing applied taxes for this listing
     const { data: appliedTaxes, error: appliedError } = await supabase
@@ -27,6 +25,9 @@ export async function initializeTaxes(listingId) {
             )
         `)
         .eq('listing_id', listingId);
+
+    // Setup the add tax form with both available and applied taxes
+    setupTaxForm(taxes, listingId, appliedTaxes);
 
     // Clear existing tax list and display fetched taxes
     clearTaxList();

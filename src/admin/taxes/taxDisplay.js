@@ -1,3 +1,18 @@
+import { updateTaxSelectOptions } from './taxForm';
+
+function formatTaxRate(rate, calculationType) {
+    switch (calculationType) {
+        case 'percentage':
+            return `${rate}%`;
+        case 'flat':
+            return `€${rate}`;
+        case 'per_night':
+            return `€${rate}/night`;
+        default:
+            return rate;
+    }
+}
+
 export function displayTaxItem(tax, listingId) {
     console.log('Attempting to display tax:', tax);
 
@@ -35,11 +50,14 @@ export function displayTaxItem(tax, listingId) {
         nameElement: !!nameElement,
         rateElement: !!rateElement,
         taxName: tax.taxes?.name,
-        taxRate: tax.rate
+        taxRate: tax.rate,
+        calculationType: tax.taxes?.calculation_type
     });
 
     if (nameElement) nameElement.textContent = tax.taxes.name;
-    if (rateElement) rateElement.textContent = `${tax.rate}%`;
+    if (rateElement) {
+        rateElement.textContent = formatTaxRate(tax.rate, tax.taxes.calculation_type);
+    }
 
     // Setup toggle switch
     const toggle = taxItem.querySelector('[data-element="tax-toggle"]');
@@ -57,7 +75,7 @@ export function displayTaxItem(tax, listingId) {
     const removeBtn = taxItem.querySelector('[data-element="remove-tax"]');
     if (removeBtn) {
         removeBtn.addEventListener('click', async () => {
-            const success = await removeTax(tax.id);
+            const success = await removeTax(tax.id, listingId);
             if (success) {
                 taxItem.remove();
             }
@@ -88,7 +106,7 @@ export async function toggleTax(appliedTaxId, isActive) {
     return true;
 }
 
-export async function removeTax(appliedTaxId) {
+export async function removeTax(appliedTaxId, listingId) {
     const { error } = await supabase
         .from('applied_taxes')
         .delete()
@@ -98,6 +116,16 @@ export async function removeTax(appliedTaxId) {
         console.error('Error removing tax:', error);
         return false;
     }
+
+    // Update select options and get count of available taxes
+    const availableTaxCount = await updateTaxSelectOptions(listingId);
+
+    // Show add tax button if there are taxes available to add
+    const addTaxButtonWrap = document.querySelector('.add_tax_btn_wrap');
+    if (addTaxButtonWrap && availableTaxCount > 0) {
+        addTaxButtonWrap.style.display = '';
+    }
+
     return true;
 }
 
