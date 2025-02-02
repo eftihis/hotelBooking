@@ -9,7 +9,7 @@ import {
     setupFormValidation,
     saveListingSettings 
 } from './settings/listingSettings';
-import { initializeCalendar } from './calendar/calendarInit';
+import { initializeAdminCalendar } from './calendar/adminCalendar';
 
 async function init() {
     // Test auth
@@ -66,8 +66,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     try {
-        // Initialize calendar
-        const calendar = await initializeCalendar(listingId);
+        // Initialize calendar with new implementation
+        const calendar = await initializeAdminCalendar(listingId);
         console.log('Calendar initialized:', !!calendar);
 
         // Initialize other components
