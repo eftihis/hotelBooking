@@ -166,20 +166,27 @@ function processBookingsForDisabledDates(bookings, gapDays) {
 }
 
 function initializeFlatpickr(config) {
-    return flatpickr("[data-element='admin-date-picker']", {
+    const defaultConfig = {
         mode: "multiple",
         inline: true,
         altInput: false,
         altFormat: "F j, Y",
         dateFormat: "Y-m-d",
-        minDate: new Date().setFullYear(new Date().getFullYear() - 1),
-        maxDate: new Date().setFullYear(new Date().getFullYear() + 1),
-        baseRate: config.baseRate || null,
-        openPeriods: config.openPeriods || [],
-        rates: config.rates || [],
         showMonths: 1,
-        bookings: config.bookings || [],
-        disable: config.disabledDateRanges,
+        clickOpens: true,
+        allowInput: false,
+        static: true,
+        disable: [], 
+        
+        onChange: function(selectedDates, dateStr, instance) {
+            // Find the next available day after the last selected date
+            const lastSelected = selectedDates[selectedDates.length - 1];
+            const nextDay = instance.days.querySelector(`[aria-label="${instance.formatDate(lastSelected, 'F j, Y')}"]`);
+            
+            if (nextDay) {
+                nextDay.focus();
+            }
+        },
         
         onDayCreate: function(dObj, dStr, fp, dayElem) {
             const currentDate = dayElem.dateObj;
@@ -370,7 +377,9 @@ function initializeFlatpickr(config) {
                 document.removeEventListener('mouseup', handleGlobalMouseUp);
             };
         }
-    });
+    };
+
+    return flatpickr("[data-element='admin-date-picker']", { ...defaultConfig, ...config });
 }
 
 // Event Handlers
