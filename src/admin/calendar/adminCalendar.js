@@ -549,18 +549,16 @@ function setupEventHandlers(adminPicker, listingId) {
                         const isAdjacent = Math.abs(new Date(period.end_date) - new Date(startDate)) <= 86400000 ||
                                           Math.abs(new Date(period.start_date) - new Date(endDate)) <= 86400000;
                         
-                        console.log('Checking period for merge:', {
-                            period: {
-                                start: period.start_date,
-                                end: period.end_date,
-                                rate: period.rate
-                            },
-                            overlaps,
-                            isAdjacent,
-                            'same rate': period.rate === rate,
-                            'should merge': (overlaps || isAdjacent) && period.rate === rate
-                        });
-                        return (overlaps || isAdjacent) && period.rate === rate;
+                        // Only consider periods for merging if they have the same rate AND either overlap
+                        // or are adjacent AND fall within our selected date range
+                        return period.rate === rate && (
+                            overlaps || 
+                            (isAdjacent && (
+                                (new Date(period.start_date) >= new Date(startDate) && new Date(period.end_date) <= new Date(endDate)) ||
+                                (new Date(period.end_date) >= new Date(startDate) && new Date(period.end_date) <= new Date(endDate)) ||
+                                (new Date(period.start_date) >= new Date(startDate) && new Date(period.start_date) <= new Date(endDate))
+                            ))
+                        );
                     });
 
                     console.log('Should merge periods?', shouldMerge);
@@ -576,9 +574,9 @@ function setupEventHandlers(adminPicker, listingId) {
 
                         console.log('Periods to merge:', periodsToMerge);
 
-                        // Find all periods that need to be deleted (including different rates in the range)
+                        // When finding periods to delete, we need to be more precise
                         const periodsToDelete = extendedPeriods.filter(p => 
-                            periodsOverlap(p.start_date, p.end_date, startDate, endDate) ||
+                            (periodsOverlap(p.start_date, p.end_date, startDate, endDate) && new Date(p.end_date) <= new Date(endDate)) ||
                             periodsToMerge.some(mp => mp.id === p.id)
                         );
 
