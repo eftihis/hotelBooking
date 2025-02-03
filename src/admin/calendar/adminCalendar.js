@@ -562,8 +562,8 @@ function setupEventHandlers(adminPicker, listingId) {
             console.error('Error in close dates handler:', error);
         }
     });
+}
 
-   
 function setupBookingModal(listingId) {
     // ... exact setupBookingModal code from admin.js ...
 }
