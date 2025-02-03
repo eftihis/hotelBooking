@@ -77,7 +77,7 @@ export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, b
         onReady: function(selectedDates, dateStr, instance) {
             let isSelecting = false;
             let startDate = null;
-            let isMouseDown = false;
+            let isDown = false;  // renamed from isMouseDown to be device-agnostic
             let isDragging = false;
             
             // Helper function to format dates for logging
@@ -91,41 +91,58 @@ export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, b
                 console.log('Selected dates:', formatDatesForLog(dates));
             }
 
-            // Move detectDrag to outer scope
+            // Helper function to get element from event (works for both touch and mouse)
+            function getElementFromEvent(e) {
+                const point = e.touches ? e.touches[0] : e;
+                return document.elementFromPoint(point.clientX, point.clientY);
+            }
+
+            // Helper function to get coordinates from event
+            function getCoordinates(e) {
+                return {
+                    x: e.touches ? e.touches[0].clientX : e.clientX,
+                    y: e.touches ? e.touches[0].clientY : e.clientY
+                };
+            }
+
             let detectDrag = null;
             
-            // Add mousedown event to calendar container
-            instance.calendarContainer.addEventListener('mousedown', function(e) {
-                const dayElement = e.target.closest('.flatpickr-day');
+            // Handle start of interaction (touch or mouse)
+            function handleStart(e) {
+                const point = getCoordinates(e);
+                const element = getElementFromEvent(e);
+                const dayElement = element?.closest('.flatpickr-day');
+                
                 if (!dayElement || dayElement.classList.contains('flatpickr-disabled')) return;
                 
-                console.log('Mouse down detected');
-                isMouseDown = true;
+                console.log('Interaction start detected');
+                isDown = true;
                 startDate = new Date(dayElement.dateObj);
                 const currentMonth = instance.currentMonth;
                 
-                // Store initial click position to detect drag
-                const initialX = e.clientX;
-                const initialY = e.clientY;
+                const initialX = point.x;
+                const initialY = point.y;
                 
-                // Define detectDrag function and store reference
                 detectDrag = function(moveEvent) {
-                    if (!isMouseDown) return;
+                    if (!isDown) return;
                     
-                    const deltaX = Math.abs(moveEvent.clientX - initialX);
-                    const deltaY = Math.abs(moveEvent.clientY - initialY);
+                    const movePoint = getCoordinates(moveEvent);
+                    const deltaX = Math.abs(movePoint.x - initialX);
+                    const deltaY = Math.abs(movePoint.y - initialY);
                     
                     if (deltaX > 5 || deltaY > 5) {
                         isDragging = true;
                         isSelecting = true;
                         console.log('Drag detected');
                         document.removeEventListener('mousemove', detectDrag);
+                        document.removeEventListener('touchmove', detectDrag);
                     }
                 };
                 
                 document.addEventListener('mousemove', detectDrag);
+                document.addEventListener('touchmove', detectDrag, { passive: false });
                 
-                // If not dragging yet, handle as a click
+                // Handle click selection logic
                 if (!isDragging) {
                     const existingDates = [...instance.selectedDates];
                     const clickedDate = new Date(dayElement.dateObj);
@@ -147,15 +164,20 @@ export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, b
                     }
                 }
                 
-                // Restore the month view
                 instance.changeMonth(currentMonth, false);
-            });
-            
-            // Add mousemove event to calendar container
-            instance.calendarContainer.addEventListener('mousemove', function(e) {
-                if (!isMouseDown || !isDragging) return;
+            }
+
+            // Handle move
+            function handleMove(e) {
+                if (!isDown || !isDragging) return;
                 
-                const dayElement = e.target.closest('.flatpickr-day');
+                // Prevent scrolling on touch devices
+                if (e.cancelable) {
+                    e.preventDefault();
+                }
+                
+                const element = getElementFromEvent(e);
+                const dayElement = element?.closest('.flatpickr-day');
                 if (!dayElement || dayElement.classList.contains('flatpickr-disabled')) return;
                 
                 const currentDate = new Date(dayElement.dateObj);
@@ -175,41 +197,28 @@ export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, b
                     // Restore the month view
                     instance.changeMonth(currentMonth, false);
                 }
-            });
-            
-            const handleGlobalMouseUp = function(e) {
-                if (isMouseDown) {
+            }
+
+            // Handle end of interaction
+            function handleEnd(e) {
+                if (isDown) {
                     console.log('Selection ended');
                     if (instance.selectedDates.length > 0) {
                         logSelectionChange('Final selection', instance.selectedDates);
                     }
-                    isMouseDown = false;
+                    isDown = false;
                     isSelecting = false;
                     isDragging = false;
                     startDate = null;
-                    // Now detectDrag will be defined when we try to remove it
+                    
                     if (detectDrag) {
                         document.removeEventListener('mousemove', detectDrag);
+                        document.removeEventListener('touchmove', detectDrag);
                         detectDrag = null;
                     }
                 }
-            };
+            }
 
-            // Add mouseup handler to document
-            document.addEventListener('mouseup', handleGlobalMouseUp);
-            
-            // Add mouseleave handler to calendar container
-            instance.calendarContainer.addEventListener('mouseleave', function() {
-                console.log('Mouse left calendar area');
-                if (isMouseDown) {
-                    console.log('Resetting selection state on mouseleave');
-                    isMouseDown = false;
-                    isSelecting = false;
-                    isDragging = false;
-                    startDate = null;
-                }
-            });
-            
             // Helper function to get all dates between two dates
             function getDatesInRange(start, end) {
                 const dates = [];
@@ -230,9 +239,23 @@ export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, b
                 return dates;
             }
             
-            // Clean up function
+            // Add both mouse and touch event listeners
+            instance.calendarContainer.addEventListener('mousedown', handleStart);
+            instance.calendarContainer.addEventListener('touchstart', handleStart);
+            
+            instance.calendarContainer.addEventListener('mousemove', handleMove);
+            instance.calendarContainer.addEventListener('touchmove', handleMove, { passive: false });
+            
+            document.addEventListener('mouseup', handleEnd);
+            document.addEventListener('touchend', handleEnd);
+            
+            instance.calendarContainer.addEventListener('mouseleave', handleEnd);
+            instance.calendarContainer.addEventListener('touchcancel', handleEnd);
+            
+            // Update cleanup function to remove all event listeners
             instance._cleanup = function() {
-                document.removeEventListener('mouseup', handleGlobalMouseUp);
+                document.removeEventListener('mouseup', handleEnd);
+                document.removeEventListener('touchend', handleEnd);
             };
         }
     });
