@@ -2,10 +2,10 @@
 import { formatDate } from '../../shared/services/dateUtils';
 import { formatPrice } from '../../shared/services/priceUtils';
 import { createDateRanges, periodsOverlap } from './utils/dateUtils.js';
-import { processBookingsForDisabledDates } from './utils/bookingUtils';
 import { initializeBookingModal, showBookingDetails } from './components/bookingModal';
 import { createBookingStrip } from './components/bookingStrip';
 import { initializeFlatpickr } from './config/flatpickrConfig';
+import { processBookingsForDisabledDates } from './utils/bookingUtils.js';
 
 // Main Initialization Function
 export async function initializeAdminCalendar(listingId) {
@@ -47,10 +47,6 @@ export async function initializeAdminCalendar(listingId) {
                 .eq('listing_id', listingId)
         ]);
 
-        // Process bookings to create disabled dates
-        const gapDays = settingsResponse.data?.[0]?.gap_days || 0;
-        const disabledDateRanges = processBookingsForDisabledDates(bookingsResponse.data, gapDays);
-
         // Initialize flatpickr
         const adminPicker = initializeFlatpickr({
             listingId,
@@ -58,7 +54,7 @@ export async function initializeAdminCalendar(listingId) {
             openPeriods: openPeriodsResponse.data,
             rates: ratesResponse.data,
             bookings: bookingsResponse.data,
-            disabledDateRanges
+            disabledDateRanges: processBookingsForDisabledDates(bookingsResponse.data, settingsResponse.data?.[0]?.gap_days)
         });
 
         // Setup event handlers
@@ -68,46 +64,6 @@ export async function initializeAdminCalendar(listingId) {
     } catch (error) {
         console.error('Error initializing admin calendar:', error);
     }
-}
-
-function processBookingsForDisabledDates(bookings, gapDays) {
-    const disabledDateRanges = [];
-    
-    if (bookings) {
-        bookings.forEach(booking => {
-            const checkIn = new Date(booking.check_in);
-            const checkOut = new Date(booking.check_out);
-            
-            // Calculate gap dates before check-in
-            const gapStart = new Date(checkIn);
-            gapStart.setDate(gapStart.getDate() - gapDays);
-            const gapEndBefore = new Date(checkIn);
-            gapEndBefore.setDate(gapEndBefore.getDate() - 1);
-            
-            // Calculate gap dates after check-out
-            const gapStartAfter = new Date(checkOut);
-            const gapEnd = new Date(checkOut);
-            gapEnd.setDate(gapEnd.getDate() + gapDays - 1);
-            
-            if (gapDays > 0) {
-                disabledDateRanges.push({
-                    from: gapStart.toISOString().split('T')[0],
-                    to: gapEndBefore.toISOString().split('T')[0]
-                });
-                
-                disabledDateRanges.push({
-                    from: checkOut.toISOString().split('T')[0],
-                    to: gapEnd.toISOString().split('T')[0]
-                });
-            }
-            
-            disabledDateRanges.push({
-                from: booking.check_in,
-                to: booking.check_out
-            });
-        });
-    }
-    return disabledDateRanges;
 }
 
 // Event Handlers
