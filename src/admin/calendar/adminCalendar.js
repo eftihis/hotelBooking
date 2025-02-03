@@ -3,6 +3,7 @@ import { formatDate } from '../../shared/services/dateUtils';
 import { formatPrice } from '../../shared/services/priceUtils';
 import { createDateRanges, periodsOverlap } from './utils/dateUtils.js';
 import { initializeBookingModal, showBookingDetails } from './components/bookingModal';
+import { createBookingStrip } from './components/bookingStrip';
 
 // Main Initialization Function
 export async function initializeAdminCalendar(listingId) {
@@ -175,30 +176,7 @@ function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, bookings
             );
 
             if (booking) {
-                const bookingStrip = document.createElement('div');
-                bookingStrip.className = 'booking-strip';
-                
-                // Add classes for start and end dates
-                if (formattedCurrentDate === booking.check_in) {
-                    bookingStrip.classList.add('booking-start');
-                    if (booking.guests?.name) {
-                        const guestName = document.createElement('span');
-                        guestName.className = 'guest-name';
-                        guestName.textContent = booking.guests.name;
-                        bookingStrip.appendChild(guestName);
-                    }
-                }
-                if (formattedCurrentDate === booking.check_out) {
-                    bookingStrip.classList.add('booking-end');
-                }
-
-                // Add click handler to show booking details
-                bookingStrip.addEventListener('click', async function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    showBookingDetails(booking);
-                }, true);
-
+                const bookingStrip = createBookingStrip(booking, formattedCurrentDate);
                 dayElem.appendChild(bookingStrip);
                 dayElem.classList.add('has-booking');
             }
