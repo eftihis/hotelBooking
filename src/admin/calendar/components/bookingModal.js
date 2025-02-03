@@ -11,8 +11,8 @@ export function initializeBookingModal() {
     const modal = document.querySelector('[data-element="booking-modal"]');
     if (modal) {
         modal.addEventListener('click', function(e) {
-            // Close if clicking outside the modal content
-            if (e.target === modal) {
+            // Close if clicking on the modal background
+            if (e.target.getAttribute('data-element') === 'modal-background') {
                 closeModal();
             }
         });

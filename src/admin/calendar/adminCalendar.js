@@ -563,11 +563,3 @@ function setupEventHandlers(adminPicker, listingId) {
         }
     });
 }
-
-function setupBookingModal(listingId) {
-    // ... exact setupBookingModal code from admin.js ...
-}
-
-async function handleBookingClick(dateObj) {
-    // ... exact handleBookingClick code from admin.js ...
-}
