@@ -563,55 +563,7 @@ function setupEventHandlers(adminPicker, listingId) {
         }
     });
 
-    // ESC key handler
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            // Close modal if it's open
-            const modal = document.querySelector('[data-element="booking-modal"]');
-            if (modal && modal.classList.contains('is-visible')) {
-                modal.style.display = 'none';
-                modal.classList.remove('is-visible');
-                return;
-            }
-
-            // Clear calendar selection if any dates are selected
-            if (adminPicker.selectedDates.length > 0) {
-                const currentMonth = adminPicker.currentMonth;
-                adminPicker.clear();
-                adminPicker.redraw();
-                adminPicker.changeMonth(currentMonth, false);
-                document.querySelector("[data-element='open-dates']").style.display = 'none';
-                document.querySelector("[data-element='close-dates']").style.display = 'none';
-                document.querySelector('.setrates_wrap').classList.remove('is-open');
-            }
-        }
-    });
-
-    // Add close button handler for the modal
-    const closeModalButton = document.querySelector('[data-element="close-modal"]');
-    if (closeModalButton) {
-        closeModalButton.addEventListener('click', function() {
-            const modal = document.querySelector('[data-element="booking-modal"]');
-            if (modal) {
-                modal.style.display = 'none';
-                modal.classList.remove('is-visible');
-            }
-        });
-    }
-
-    // Add click outside modal handler
-    const modal = document.querySelector('[data-element="booking-modal"]');
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            // Close if clicking outside the modal content
-            if (e.target === modal) {
-                modal.style.display = 'none';
-                modal.classList.remove('is-visible');
-            }
-        });
-    }
-}
-
+   
 function setupBookingModal(listingId) {
     // ... exact setupBookingModal code from admin.js ...
 }
