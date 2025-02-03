@@ -2,6 +2,7 @@
 import { formatDate } from '../../shared/services/dateUtils';
 import { formatPrice } from '../../shared/services/priceUtils';
 import { createDateRanges, periodsOverlap } from './utils/dateUtils.js';
+import { initializeBookingModal, showBookingDetails } from './components/bookingModal';
 
 // Main Initialization Function
 export async function initializeAdminCalendar(listingId) {
@@ -195,36 +196,7 @@ function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, bookings
                 bookingStrip.addEventListener('click', async function(e) {
                     e.stopPropagation();
                     e.preventDefault();
-                    
-                    const modal = document.querySelector('[data-element="booking-modal"]');
-                    if (!modal) return;
-
-                    // Populate modal elements
-                    const modalElements = {
-                        'guest-name': booking.guests?.name || 'N/A',
-                        'listing-name': booking.listings?.name || 'N/A',
-                        'check-in': booking.check_in,
-                        'check-out': booking.check_out,
-                        'total-nights': `${booking.total_nights || 0} nights`,
-                        'total-price': `€${formatPrice(booking.final_total || 0)}`,
-                        'confirmation-code': booking.id || 'N/A',
-                        'nightly-rate': `€${formatPrice(booking.nightly_rate || 0)}`,
-                        'cleaning-fee': `€${formatPrice(booking.cleaning_fee || 0)}`,
-                        'discount-amount': `€${formatPrice(booking.discount_total || 0)}`,
-                        'nightstay-tax-amount': `€${formatPrice(booking.nightstay_tax_total || 0)}`,
-                        'total-guests': booking.number_of_guests || 'N/A',
-                        'booking-status': booking.status || 'N/A',
-                        'payment-status': booking.payment_status || 'N/A'
-                    };
-
-                    Object.entries(modalElements).forEach(([element, value]) => {
-                        const el = document.querySelector(`[data-element="booking-${element}"]`);
-                        if (el) el.textContent = value;
-                    });
-
-                    // Show the modal
-                    modal.style.display = 'block';
-                    modal.classList.add('is-visible');
+                    showBookingDetails(booking);
                 }, true);
 
                 dayElem.appendChild(bookingStrip);
@@ -400,6 +372,9 @@ function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, bookings
 
 // Event Handlers
 function setupEventHandlers(adminPicker, listingId) {
+    // Initialize the booking modal
+    initializeBookingModal();
+    
     // Set rates button handler
     document.querySelector("[data-element='set-rates']").addEventListener('click', () => {
         document.querySelector("[data-element='rate-container']").classList.add('is-open');
