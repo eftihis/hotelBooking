@@ -2,6 +2,7 @@
 import { formatDate } from '../../shared/services/dateUtils';
 import { formatPrice } from '../../shared/services/priceUtils';
 import { createDateRanges, periodsOverlap } from './utils/dateUtils.js';
+import { processBookingsForDisabledDates } from './utils/bookingUtils';
 import { initializeBookingModal, showBookingDetails } from './components/bookingModal';
 import { createBookingStrip } from './components/bookingStrip';
 import { initializeFlatpickr } from './config/flatpickrConfig';
