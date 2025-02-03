@@ -109,19 +109,25 @@ export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, b
             
             // Handle start of interaction (touch or mouse)
             function handleStart(e) {
-                const point = getCoordinates(e);
-                const element = getElementFromEvent(e);
-                const dayElement = element?.closest('.flatpickr-day');
-                
+                const dayElement = e.target.closest('.flatpickr-day');
                 if (!dayElement || dayElement.classList.contains('flatpickr-disabled')) return;
                 
                 console.log('Interaction start detected');
                 isDown = true;
+                isDragging = false;
                 startDate = new Date(dayElement.dateObj);
+                
+                // Store the initial selection when drag starts
+                instance._initialSelection = [...instance.selectedDates];
+                
+                // Store initial event and reset direction
+                instance._initialEvent = e;
+                instance._dragDirection = null;
+                
                 const currentMonth = instance.currentMonth;
                 
-                const initialX = point.x;
-                const initialY = point.y;
+                const initialX = getCoordinates(e).x;
+                const initialY = getCoordinates(e).y;
                 
                 detectDrag = function(moveEvent) {
                     if (!isDown) return;
@@ -171,7 +177,6 @@ export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, b
             function handleMove(e) {
                 if (!isDown || !isDragging) return;
                 
-                // Prevent scrolling on touch devices
                 if (e.cancelable) {
                     e.preventDefault();
                 }
@@ -184,17 +189,44 @@ export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, b
                 const currentMonth = instance.currentMonth;
                 
                 if (isDragging) {
-                    // During drag, merge with existing selection
-                    const existingDates = instance.selectedDates.filter(date => {
-                        // Keep dates that aren't in the current drag range
-                        return date < Math.min(startDate, currentDate) || 
-                               date > Math.max(startDate, currentDate);
-                    });
+                    const initialPoint = getCoordinates(instance._initialEvent);
+                    const currentPoint = getCoordinates(e);
                     
+                    // Calculate deltas from initial point
+                    const deltaX = currentPoint.x - initialPoint.x;
+                    const deltaY = currentPoint.y - initialPoint.y;
+                    
+                    // Determine current direction relative to start date
+                    const currentDirection = (currentDate > startDate) ? 'forward' : 'backward';
+                    
+                    // Update drag direction if it changed
+                    if (instance._dragDirection !== currentDirection) {
+                        console.log('Direction changed to:', currentDirection);
+                        instance._dragDirection = currentDirection;
+                    }
+                    
+                    // Get the range of dates based on current direction
                     const dragDates = getDatesInRange(startDate, currentDate);
-                    instance.setDate([...existingDates, ...dragDates]);
                     
-                    // Restore the month view
+                    // Keep the initial selection that was present when drag started
+                    const initialSelection = instance._initialSelection || [];
+                    
+                    // Get new dates based on current direction
+                    let newRangeDates = [];
+                    if (instance._dragDirection === 'forward') {
+                        // When going forward, only select dates after start date
+                        newRangeDates = dragDates.filter(date => date >= startDate);
+                    } else {
+                        // When going backward, only select dates before start date
+                        newRangeDates = dragDates.filter(date => date <= startDate);
+                    }
+                    
+                    console.log('Direction:', instance._dragDirection, 'Selected dates:', newRangeDates.length);
+                    
+                    // Combine initial selection with new range
+                    const newDates = [...initialSelection, ...newRangeDates];
+                    
+                    instance.setDate(newDates);
                     instance.changeMonth(currentMonth, false);
                 }
             }
@@ -210,6 +242,9 @@ export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, b
                     isSelecting = false;
                     isDragging = false;
                     startDate = null;
+                    instance._dragDirection = null;
+                    instance._initialEvent = null;
+                    instance._initialSelection = null;  // Clear the initial selection
                     
                     if (detectDrag) {
                         document.removeEventListener('mousemove', detectDrag);
