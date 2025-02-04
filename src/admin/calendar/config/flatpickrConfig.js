@@ -1,3 +1,5 @@
+import flatpickr from "../flatpickr.js";
+import "../styles/flatpickrStyles.css";
 import { createBookingStrip } from '../components/bookingStrip';
 
 export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, bookings, disabledDateRanges }) {
