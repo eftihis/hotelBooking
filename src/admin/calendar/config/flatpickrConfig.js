@@ -294,6 +294,28 @@ export function initializeFlatpickr({ listingId, baseRate, openPeriods, rates, b
                 document.removeEventListener('mouseup', handleEnd);
                 document.removeEventListener('touchend', handleEnd);
             };
+        },
+
+        onChange: function(selectedDates, dateStr, instance) {
+            // Get the currently focused date element before any changes
+            const currentlyFocused = instance.days.querySelector('.flatpickr-day.focused');
+            const currentDate = currentlyFocused ? new Date(currentlyFocused.dateObj) : null;
+            
+            // If we have a currently focused date, maintain focus on it
+            // Otherwise, focus on the last selected date
+            const dateToFocus = currentDate || (selectedDates.length > 0 ? selectedDates[selectedDates.length - 1] : null);
+            
+            if (dateToFocus) {
+                setTimeout(() => {
+                    const dayToFocus = instance.days.querySelector(
+                        `.flatpickr-day[aria-label="${instance.formatDate(dateToFocus, instance.config.ariaDateFormat)}"]`
+                    );
+                    if (dayToFocus) {
+                        dayToFocus.focus();
+                        dayToFocus.classList.add('focused');
+                    }
+                }, 0);
+            }
         }
     });
 
