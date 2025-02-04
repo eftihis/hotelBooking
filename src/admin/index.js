@@ -1,6 +1,6 @@
-import { formatDate, calculateNights } from '../shared/services/dateUtils';
-import { formatPrice } from '../shared/services/priceUtils';
-import { getListingIdFromUrl } from '../shared/services/urlUtils';
+import { formatDate, calculateNights } from '../shared/utils/dateUtils';
+import { formatPrice } from '../shared/utils/priceUtils';
+import { getListingIdFromUrl } from '../shared/utils/urlUtils';
 import { checkAuth } from '../shared/services/authCheck';
 import { initializeTaxes } from './taxes/appliedTaxes';
 import { 
