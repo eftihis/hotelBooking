@@ -1,6 +1,6 @@
 // Import utility functions
-import { formatDate } from '../../shared/services/dateUtils';
-import { formatPrice } from '../../shared/services/priceUtils';
+import { formatDate } from '../../shared/utils/dateUtils.js';
+import { formatPrice } from '../../shared/utils/priceUtils.js';
 import { createDateRanges, periodsOverlap } from './utils/dateUtils.js';
 import { initializeBookingModal, showBookingDetails } from './components/bookingModal';
 import { createBookingStrip } from './components/bookingStrip';

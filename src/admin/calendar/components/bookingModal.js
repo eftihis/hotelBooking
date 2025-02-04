@@ -1,4 +1,4 @@
-import { formatPrice } from '../../../shared/services/priceUtils';
+import { formatPrice } from '../../../shared/utils/priceUtils';
 
 export function initializeBookingModal() {
     // Add close button handler for the modal

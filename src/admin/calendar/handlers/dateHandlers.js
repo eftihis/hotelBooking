@@ -1,4 +1,4 @@
-import { formatDate } from '../../../shared/services/dateUtils';
+import { formatDate } from '../../../shared/utils/dateUtils';
 import { createDateRanges, periodsOverlap } from '../utils/dateUtils';
 
 export async function handleOpenDates(adminPicker, listingId) {
