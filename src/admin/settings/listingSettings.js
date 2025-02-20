@@ -1,4 +1,7 @@
-export async function fetchListingSettings(listingId) {
+import { memoize } from '../../shared/utils/memoUtils';
+
+// Base function that makes the actual API call
+async function fetchListingSettingsFromAPI(listingId) {
     const { data, error } = await supabase
         .from('listing_settings')
         .select('*')
@@ -9,8 +12,28 @@ export async function fetchListingSettings(listingId) {
         console.error('Error fetching listing settings:', error);
         return null;
     }
-
     return data;
+}
+
+// Memoized version
+export const fetchListingSettings = memoize(fetchListingSettingsFromAPI);
+
+export async function saveListingSettings(listingId) {
+    const formData = getFormData();
+    
+    const { error } = await supabase
+        .from('listing_settings')
+        .update(formData)
+        .eq('listing_id', listingId);
+
+    if (error) {
+        console.error('Error saving listing settings:', error);
+        return false;
+    }
+
+    // Clear only this specific listing's cache
+    fetchListingSettings.clearCache(listingId);
+    return true;
 }
 
 export function populateSettingsForm(settings) {
@@ -101,50 +124,3 @@ export function setupFormValidation() {
         }
     });
 }
-
-export async function saveListingSettings(listingId) {
-    // Map form fields to database fields
-    const fieldMap = {
-        'base-rate-input': 'base_rate',
-        'max-guests-input': 'max_guests',
-        'extra-guest-input': 'extra_guest_fee',
-        'cleaning-fee-input': 'cleaning_fee',
-        'min-stay-input': 'minimum_stay',
-        'max-stay-input': 'maximum_stay',
-        'booking-gap-input': 'gap_days',
-        'weekly-discount-input': 'weekly_discount_percentage',
-        'monthly-discount-input': 'monthly_discount_percentage'
-    };
-
-    // Collect form values
-    const settings = {};
-    Object.entries(fieldMap).forEach(([elementId, dbField]) => {
-        const element = document.querySelector(`[data-element="${elementId}"]`);
-        if (element) {
-            let value = element.value;
-            
-            // Convert percentage fields from whole numbers to decimals
-            if (percentageFields.includes(elementId)) {
-                value = (parseInt(value) || 0) / 100;
-            } else {
-                value = parseInt(value) || null;
-            }
-            
-            settings[dbField] = value;
-        }
-    });
-
-    console.log('Saving settings:', settings);
-
-    const { data, error } = await supabase
-        .from('listing_settings')
-        .update(settings)
-        .eq('listing_id', listingId);
-
-    if (error) {
-        console.error('Error saving settings:', error);
-        return false;
-    }
-
-    return true;
-} 

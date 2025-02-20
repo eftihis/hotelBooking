@@ -8,6 +8,7 @@ import { initializeFlatpickr } from './config/flatpickrConfig';
 import { processBookingsForDisabledDates } from './utils/bookingUtils.js';
 import { handleOpenDates, handleCloseDates } from './handlers/dateHandlers';
 import { handleApplyRate, handleResetRates } from './handlers/rateHandlers';
+import { fetchListingSettings } from '../settings/listingSettings';
 
 // Main Initialization Function
 export async function initializeAdminCalendar(listingId) {
@@ -22,12 +23,9 @@ export async function initializeAdminCalendar(listingId) {
     const supabase = window.supabase;
 
     try {
-        // Fetch all necessary data in parallel
-        const [settingsResponse, openPeriodsResponse, ratesResponse, bookingsResponse] = await Promise.all([
-            supabase
-                .from('listing_settings')
-                .select('base_rate, gap_days')
-                .eq('listing_id', listingId),
+        // Use memoized listing settings query
+        const [settings, openPeriodsResponse, ratesResponse, bookingsResponse] = await Promise.all([
+            fetchListingSettings(listingId),
             supabase
                 .from('open_dates')
                 .select('*')
@@ -38,25 +36,18 @@ export async function initializeAdminCalendar(listingId) {
                 .eq('listing_id', listingId),
             supabase
                 .from('bookings')
-                .select(`
-                    *,
-                    guests (
-                        name,
-                        email,
-                        phone
-                    )
-                `)
+                .select('*,guests(name,email,phone)')
                 .eq('listing_id', listingId)
         ]);
 
         // Initialize flatpickr
         const adminPicker = initializeFlatpickr({
             listingId,
-            baseRate: settingsResponse.data?.[0]?.base_rate,
+            baseRate: settings?.base_rate,
             openPeriods: openPeriodsResponse.data,
             rates: ratesResponse.data,
             bookings: bookingsResponse.data,
-            disabledDateRanges: processBookingsForDisabledDates(bookingsResponse.data, settingsResponse.data?.[0]?.gap_days)
+            disabledDateRanges: processBookingsForDisabledDates(bookingsResponse.data, settings?.gap_days)
         });
 
         // Setup event handlers

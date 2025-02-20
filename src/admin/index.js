@@ -17,21 +17,18 @@ import {
 } from './settings/listingSettings';
 import { initializeAdminCalendar } from './calendar/adminCalendar';
 
-async function init() {
-    // Test auth
-    const user = await checkAuth();
-    if (!user) return;
+async function initializeAdmin(listingId) {
+    try {
+        // Initialize calendar
+        const calendar = await initializeAdminCalendar(listingId);
+        console.log('Calendar initialized:', !!calendar);
 
-    const listingId = getListingIdFromUrl();
-    console.log('Listing ID:', listingId);
-
-    if (listingId) {
         // Initialize taxes
         const { taxes, appliedTaxes } = await initializeTaxes(listingId);
         console.log('Available taxes:', taxes);
         console.log('Applied taxes:', appliedTaxes);
 
-        // Fetch and populate settings
+        // Fetch and populate settings (only one call)
         const settings = await fetchListingSettings(listingId);
         console.log('Listing settings:', settings);
         populateSettingsForm(settings);
@@ -44,25 +41,23 @@ async function init() {
                 const success = await saveListingSettings(listingId);
                 if (success) {
                     console.log('Settings saved successfully');
-                    // You might want to add some UI feedback here
                 }
             });
         }
+
+    } catch (error) {
+        console.error('Error initializing admin page:', error);
     }
-
-    // Test our utility functions
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    console.log('Formatted date:', formatDate(today));
-    console.log('Nights between dates:', calculateNights(today, tomorrow));
-    console.log('Formatted price:', formatPrice(99.99));
 }
 
+// Single initialization point
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('Admin page initialized');
     
+    // Check auth first
+    const user = await checkAuth();
+    if (!user) return;
+
     const listingId = getListingIdFromUrl();
     console.log('Listing ID:', listingId);
 
@@ -71,23 +66,5 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-    try {
-        // Initialize calendar with new implementation
-        const calendar = await initializeAdminCalendar(listingId);
-        console.log('Calendar initialized:', !!calendar);
-
-        // Initialize other components
-        const { taxes, appliedTaxes } = await initializeTaxes(listingId);
-        console.log('Available taxes:', taxes);
-        console.log('Applied taxes:', appliedTaxes);
-
-        // Initialize listing settings
-        const settings = await fetchListingSettings(listingId);
-        console.log('Listing settings:', settings);
-
-    } catch (error) {
-        console.error('Error initializing admin page:', error);
-    }
+    await initializeAdmin(listingId);
 });
-
-init();
